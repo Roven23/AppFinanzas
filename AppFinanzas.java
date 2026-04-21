@@ -3,6 +3,7 @@ import Modelo.Cuenta;
 import java.util.Scanner;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 
 public class AppFinanzas {
     private static int diaPago = 27;
@@ -22,7 +23,7 @@ public class AppFinanzas {
         Scanner teclado = new Scanner(System.in);
         ArrayList<transaccion> historial = new ArrayList<>();
         ArrayList<Cuenta> misCuentas = new ArrayList<>();
-        ArrayList<String> categorias = new ArrayList<>();
+        ArrayList<String> categorias = new ArrayList<>(Arrays.asList("Comida", "Transporte", "Facultad", "Sueldo", "Gym"));
 
         
         misCuentas.add(new Cuenta("EFECTIVO", 0.0));
@@ -105,22 +106,31 @@ public class AppFinanzas {
     }
     Cuenta cuentaSeleccionada = misCuentas.get(indiceCuenta);
 
-    // 2. Selección de Categoría (OBLIGATORIO)
-    // Asumiendo que tienes una lista llamada 'categorias' creada en el main
+    // 2. SELECCIÓN O CREACIÓN DE CATEGORÍA
     System.out.println("\n--- SELECCIONE CATEGORÍA ---");
     for (int i = 0; i < categorias.size(); i++) {
         System.out.println((i + 1) + ". " + categorias.get(i));
     }
+    System.out.println((categorias.size() + 1) + ". [ + Crear nueva categoría ]");
+    
     System.out.print("Selección: ");
     int indiceCat = teclado.nextInt() - 1;
-    
-    if (indiceCat < 0 || indiceCat >= categorias.size()) {
-        System.out.println("❌ Categoría inválida.");
+    teclado.nextLine(); // Limpiar buffer importante para strings
+
+    String categoriaElegida;
+    if (indiceCat == categorias.size()) { // Opción de crear nueva
+        System.out.print("Nombre de la nueva categoría: ");
+        categoriaElegida = teclado.nextLine();
+        categorias.add(categoriaElegida);
+        System.out.println("✔ Categoría '" + categoriaElegida + "' añadida.");
+    } else if (indiceCat >= 0 && indiceCat < categorias.size()) {
+        categoriaElegida = categorias.get(indiceCat);
+    } else {
+        System.out.println("❌ Opción inválida.");
         break;
     }
-    String categoriaElegida = categorias.get(indiceCat);
 
-    // 3. Datos del monto y tipo
+    // 3. Monto y Tipo de movimiento
     System.out.print("Monto ($): ");
     double montoMov = teclado.nextDouble();
     
@@ -128,25 +138,25 @@ public class AppFinanzas {
     boolean esIngresoMov = teclado.nextBoolean();
     teclado.nextLine(); // Limpiar buffer
 
-    // Validación de saldo para egresos
+    // Validación de saldo para gastos
     if (!esIngresoMov && montoMov > cuentaSeleccionada.getSaldo()) {
         System.out.println("⚠️ ¡Alerta! Saldo insuficiente en " + cuentaSeleccionada.getNombre());
         System.out.print("¿Desea realizar el gasto de todos modos? (si/no): ");
         if (teclado.nextLine().equalsIgnoreCase("no")) break;
     }
 
-    // 4. Descripción (OPCIONAL)
+    // 4. Descripción (Opcional)
     System.out.print("Descripción (Opcional - Enter para saltar): ");
     String descMov = teclado.nextLine();
 
-    // 5. Ejecución y Guardado
+    // 5. Ejecución y Guardado en Historial
     cuentaSeleccionada.actualizarSaldo(montoMov, esIngresoMov);
     
-    // IMPORTANTE: El orden debe ser (monto, descripción, categoría, esIngreso)
+    // El orden del constructor es: monto, descripción, categoría, esIngreso
     String descConCuenta = "[" + cuentaSeleccionada.getNombre() + "] " + descMov;
     historial.add(new transaccion(montoMov, descConCuenta, categoriaElegida, esIngresoMov));
 
-    System.out.println("✔ Registrado en " + cuentaSeleccionada.getNombre() + " bajo la categoría " + categoriaElegida);
+    System.out.println("✔ Movimiento registrado correctamente en " + cuentaSeleccionada.getNombre());
     break;
 
                 case 4:
@@ -168,7 +178,7 @@ public class AppFinanzas {
                     break;
 
                 case 6:
-                    mostrarResumenCiclo(obtenerInicioCiclo(), historial);
+                    mostrarResumenCiclo(obtenerInicioCiclo(), historial, misCuentas);
                     break;
 
                 case 7: // Opción de Transferencia entre cuentas
@@ -217,7 +227,7 @@ public class AppFinanzas {
         // Ejecutar el movimiento en los objetos Cuenta
         origen.actualizarSaldo(montoTransf, false); // Resta del origen
         destino.actualizarSaldo(montoTransf, true);  // Suma al destino
-
+        
         // 4. REGISTRO EN HISTORIAL (Corregido para el nuevo constructor)
         // Orden: monto, descripción, categoría, esIngreso
         String registroDesc = "De " + origen.getNombre() + " a " + destino.getNombre();
@@ -252,29 +262,100 @@ public class AppFinanzas {
 
         teclado.close();
     }
-    public static void mostrarResumenCiclo(LocalDateTime inicio, ArrayList<transaccion> historial) {
-        LocalDateTime fin = inicio.plusMonths(1); // El corte es exactamente un mes después
-        double ingresos = 0;
-        double egresos = 0;
+        public static void mostrarResumenCiclo(LocalDateTime inicio, ArrayList<transaccion> historial, ArrayList<Cuenta> misCuentas) {
+    LocalDateTime fin = inicio.plusMonths(1);
+    double ingresosMes = 0;
+    double egresosMes = 0;
+    double sueldoDetectado = 0; // Variable para el cálculo de porcentajes
+    double saldoAhorros = 0;
+    double deudaConAhorro = 0;
+    
+    java.util.Map<String, Double> gastosPorCategoria = new java.util.HashMap<>();
 
-        System.out.println("\n--- REPORTE PROFESIONAL DEL CICLO ---");
-        System.out.println("Desde: " + inicio.toLocalDate() + " hasta: " + fin.toLocalDate().minusDays(1));
+    // 1. Obtener saldo de cuentas marcadas como [AHORRO]
+    for (Cuenta c : misCuentas) {
+        if (c.getNombre().toUpperCase().contains("[AHORRO]")) {
+            saldoAhorros += c.getSaldo();
+        }
+    }
 
-        for (transaccion t : historial) {
-            // Lógica de frontera: Incluye el inicio, excluye el inicio del siguiente ciclo
-            if ((t.getFechaHora().isAfter(inicio) || t.getFechaHora().isEqual(inicio)) 
-                 && t.getFechaHora().isBefore(fin)) {
-                
-                System.out.println(t.toString());
-                if (t.isEsIngreso()) ingresos += t.getMonto();
-                else egresos += t.getMonto();
+    // 2. Escanear Historial
+    for (transaccion t : historial) {
+        if ((t.getFechaHora().isAfter(inicio) || t.getFechaHora().isEqual(inicio)) 
+             && t.getFechaHora().isBefore(fin)) {
+            
+            // Lógica para detectar el Sueldo Automáticamente
+            if (t.getCategoria().equalsIgnoreCase("SUELDO") && t.isEsIngreso()) {
+                sueldoDetectado += t.getMonto();
+            }
+
+            // Ignorar transferencias para el flujo de caja, pero detectar deuda
+            // ... dentro del bucle for de transacciones ...
+
+if (t.getCategoria().equalsIgnoreCase("TRANSFERENCIA")) {
+    
+    // Solo contamos como DEUDA si el dinero SALIÓ de un ahorro hacia otro lado
+    // Buscamos que la descripción empiece con "De [AHORRO]"
+    if (t.getDescripcion().toUpperCase().contains("DE [AHORRO]")) {
+        deudaConAhorro += t.getMonto();
+    }
+    
+    // Las transferencias no afectan el cálculo de ingresos/gastos mensuales
+    continue; 
+}
+
+            // Sumar ingresos y egresos generales del mes
+            if (t.isEsIngreso()) {
+                ingresosMes += t.getMonto();
+            } else {
+                egresosMes += t.getMonto();
+                String cat = t.getCategoria();
+                gastosPorCategoria.put(cat, gastosPorCategoria.getOrDefault(cat, 0.0) + t.getMonto());
             }
         }
-
-        System.out.println("-------------------------------------");
-        System.out.printf("INGRESOS DEL CICLO: $%.2f\n", ingresos);
-        System.out.printf("GASTOS DEL CICLO:   $%.2f\n", egresos);
-        System.out.printf("AHORRO NETO:        $%.2f\n", (ingresos - egresos));
-        System.out.println("-------------------------------------");
     }
+
+    double sobranteMes = ingresosMes - egresosMes;
+    double ahorroMasSobrante = saldoAhorros + sobranteMes;
+
+    // --- INTERFAZ DEL DASHBOARD ---
+    System.out.println("\n=========================================");
+    System.out.println("   📊 DASHBOARD ESTRATÉGICO AUTOMATIZADO");
+    System.out.println("   Periodo: " + inicio.toLocalDate() + " al " + fin.toLocalDate().minusDays(1));
+    System.out.println("=========================================");
+
+    System.out.printf(" 💰 SUELDO DETECTADO:    $%.2f\n", sueldoDetectado);
+    System.out.printf(" (+) Otros Ingresos:     $%.2f\n", (ingresosMes - sueldoDetectado));
+    System.out.printf(" (-) Gastos del Mes:     $%.2f\n", egresosMes);
+    System.out.printf(" (=) Sobrante del Ciclo: $%.2f\n", sobranteMes);
+    System.out.println(" ---------------------------------------");
+    
+    System.out.printf(" 🏦 SALDO EN AHORROS:    $%.2f\n", saldoAhorros);
+    if (deudaConAhorro > 0) {
+        System.out.printf(" ⚠️ DEUDA POR REPORNER: -$%.2f\n", deudaConAhorro);
+    }
+    System.out.println(" ---------------------------------------");
+    System.out.printf(" 💎 PATRIMONIO TOTAL:    $%.2f\n", ahorroMasSobrante);
+    System.out.println(" ---------------------------------------");
+
+    // --- GRÁFICO RESPECTO AL SUELDO DETECTADO ---
+    if (sueldoDetectado > 0) {
+        System.out.println("\n DESGLOSE DE GASTOS (% DEL SUELDO):");
+        for (java.util.Map.Entry<String, Double> entry : gastosPorCategoria.entrySet()) {
+            double monto = entry.getValue();
+            double porcSueldo = (monto / sueldoDetectado) * 100;
+            
+            int numBarras = (int) (porcSueldo / 2); // 1 bloque por cada 2%
+            String barra = "";
+            for (int i = 0; i < numBarras; i++) barra += "■";
+            
+            System.out.printf("%-15s [%-20s] %3.1f%% ($%.2f)\n", 
+                              entry.getKey(), barra, porcSueldo, monto);
+        }
+    } else {
+        System.out.println("\n [!] No se detectaron ingresos bajo la categoría 'SUELDO'.");
+        System.out.println("     Registre su sueldo para ver los porcentajes.");
+    }
+    System.out.println("=========================================\n");
+}
 }
