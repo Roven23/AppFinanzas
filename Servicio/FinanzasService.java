@@ -23,6 +23,18 @@ public class FinanzasService {
         System.out.println("======================================");
         System.out.print("Seleccione una opcion: ");
     }
+    
+    private static double leerMontoSeguro(Scanner teclado) {
+        while (true) {
+            try {
+                String entrada = teclado.nextLine();
+                String entradaLimpia = entrada.replace(',', '.');
+                return Double.parseDouble(entradaLimpia);
+            } catch (NumberFormatException e) {
+                System.out.print("Error: Ingrese un valor numerico (ej: 10.50 o 10,50): ");
+            }
+        }
+    }
 
     public static ArrayList<Categoria> cargarCategoriasIniciales() {
         ArrayList<Categoria> lista = new ArrayList<>();
@@ -41,7 +53,7 @@ public class FinanzasService {
         }
         System.out.println("\n--- ESTADO DE CUENTAS ---");
         for (Cuenta c : cuentas) {
-            System.out.println("- " + c.getNombre() + ": $" + c.getSaldo());
+            System.out.printf("- %s: $%.2f\n", c.getNombre(), c.getSaldo());
         }
     }
 
@@ -56,19 +68,18 @@ public class FinanzasService {
 
     public static void registrarMovimiento(ArrayList<Cuenta> cuentas, ArrayList<Categoria> categorias, ArrayList<transaccion> historial, Scanner teclado) {
         if (cuentas.isEmpty()) {
-            System.out.println("Error: Debe crear una cuenta primero.");
+            System.out.println("Error: Cree una cuenta primero.");
             return;
         }
 
-        // Seleccion de Cuenta
         System.out.println("\n--- SELECCIONE CUENTA ---");
         for (int i = 0; i < cuentas.size(); i++) {
-            System.out.println((i + 1) + ". " + cuentas.get(i).getNombre());
+            System.out.printf("%d. %s ($%.2f)\n", (i + 1), cuentas.get(i).getNombre(), cuentas.get(i).getSaldo());
         }
         int idxCuenta = Integer.parseInt(teclado.nextLine()) - 1;
         Cuenta cuentaSel = cuentas.get(idxCuenta);
 
-        // Seleccion de Categoria
+        // ... (Logica de categorias igual que antes) ...
         System.out.println("\n--- SELECCIONE CATEGORIA ---");
         for (int i = 0; i < categorias.size(); i++) {
             System.out.println((i + 1) + ". " + categorias.get(i).getNombre());
@@ -89,15 +100,14 @@ public class FinanzasService {
         }
 
         System.out.print("Monto: ");
-        double monto = Double.parseDouble(teclado.nextLine());
+        double monto = leerMontoSeguro(teclado);
         System.out.print("Descripcion (Opcional): ");
         String desc = teclado.nextLine();
 
-        // Ejecucion
         cuentaSel.actualizarSaldo(monto, catSel.isEsIngreso());
         String descFull = "[" + cuentaSel.getNombre() + "] " + desc;
         historial.add(new transaccion(monto, descFull, catSel.getNombre(), catSel.isEsIngreso()));
-        System.out.println("Movimiento registrado.");
+        System.out.printf("Movimiento de $%.2f registrado.\n", monto);
     }
 
     public static void mostrarHistorialGeneral(ArrayList<transaccion> historial) {
@@ -106,8 +116,17 @@ public class FinanzasService {
             return;
         }
         System.out.println("\n--- HISTORIAL DE TRANSACCIONES ---");
+        System.out.printf("%-12s | %-12s | %-25s | %-10s%.2f\n", "FECHA", "CATEGORIA", "DESCRIPCION", "MONTO");
+        System.out.println("---------------------------------------------------------------------------");
+        
         for (transaccion t : historial) {
-            System.out.println(t.getFechaHora().toLocalDate() + " | " + t.getCategoria() + " | " + t.getDescripcion() + " | $" + t.getMonto());
+            String signo = t.isEsIngreso() ? "+" : "-";
+            System.out.printf("%-12s | %-12s | %-25s | %s$%.2f\n", 
+                t.getFechaHora().toLocalDate(), 
+                t.getCategoria(), 
+                t.getDescripcion(), 
+                signo, 
+                t.getMonto());
         }
     }
 
@@ -116,21 +135,38 @@ public class FinanzasService {
             System.out.println("Necesita al menos 2 cuentas para transferir.");
             return;
         }
-        System.out.println("Seleccione origen (1-" + cuentas.size() + "): ");
+
+        System.out.println("\n--- ORIGEN DEL DINERO ---");
+        for (int i = 0; i < cuentas.size(); i++) {
+            System.out.printf("%d. %s (Saldo: $%.2f)\n", (i + 1), cuentas.get(i).getNombre(), cuentas.get(i).getSaldo());
+        }
+        System.out.print("Seleccione cuenta de origen: ");
         int or = Integer.parseInt(teclado.nextLine()) - 1;
-        System.out.println("Seleccione destino (1-" + cuentas.size() + "): ");
+
+        System.out.println("\n--- DESTINO DEL DINERO ---");
+        for (int i = 0; i < cuentas.size(); i++) {
+            if (i == or) continue; // No transferir a la misma cuenta
+            System.out.printf("%d. %s (Saldo: $%.2f)\n", (i + 1), cuentas.get(i).getNombre(), cuentas.get(i).getSaldo());
+        }
+        System.out.print("Seleccione cuenta de destino: ");
         int des = Integer.parseInt(teclado.nextLine()) - 1;
+
         System.out.print("Monto a transferir: ");
-        double m = Double.parseDouble(teclado.nextLine());
+        double m = leerMontoSeguro(teclado);
 
-        cuentas.get(or).actualizarSaldo(m, false);
-        cuentas.get(des).actualizarSaldo(m, true);
+        if (m <= cuentas.get(or).getSaldo()) {
+            cuentas.get(or).actualizarSaldo(m, false);
+            cuentas.get(des).actualizarSaldo(m, true);
 
-        String d = "De " + cuentas.get(or).getNombre() + " a " + cuentas.get(des).getNombre();
-        historial.add(new transaccion(m, d, "TRANSFERENCIA", false));
-        System.out.println("Transferencia realizada.");
+            String d = "De " + cuentas.get(or).getNombre() + " a " + cuentas.get(des).getNombre();
+            // Se registra como egreso del origen para el historial tecnico
+            historial.add(new transaccion(m, d, "TRANSFERENCIA", false));
+            System.out.printf("Transferencia de $%.2f realizada con exito.\n", m);
+        } else {
+            System.out.println("Error: Saldo insuficiente en la cuenta de origen.");
+        }
     }
-
+   
     // 3. LOGICA DE CALENDARIO Y CICLO
     public static int configurarDiaPago(Scanner teclado) {
         java.time.YearMonth mesActual = java.time.YearMonth.now();
@@ -164,7 +200,7 @@ public class FinanzasService {
         Map<String, Double> gastosCat = new HashMap<>();
 
         for (Cuenta c : misCuentas) {
-            if (c.getNombre().toUpperCase().contains("[AHORRO]")) saldoAhorros += c.getSaldo();
+            if (c.getNombre().toUpperCase().contains("AHORRO")) saldoAhorros += c.getSaldo();
         }
 
         for (transaccion t : historial) {
@@ -172,7 +208,7 @@ public class FinanzasService {
                 if (t.getCategoria().equalsIgnoreCase("SUELDO") && t.isEsIngreso()) sueldoDet += t.getMonto();
                 
                 if (t.getCategoria().equalsIgnoreCase("TRANSFERENCIA")) {
-                    if (t.getDescripcion().toUpperCase().contains("DE [AHORRO]")) deudaAhorro += t.getMonto();
+                    if (t.getDescripcion().toUpperCase().contains("DE AHORRO")) deudaAhorro += t.getMonto();
                     continue;
                 }
 

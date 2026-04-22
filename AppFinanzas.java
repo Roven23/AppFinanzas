@@ -3,7 +3,6 @@ import Modelo.*;
 import Servicio.FinanzasService;
 import java.util.Scanner;
 import java.util.ArrayList;
-import java.util.Arrays;
 
 public class AppFinanzas {
     public static void main(String[] args) {
