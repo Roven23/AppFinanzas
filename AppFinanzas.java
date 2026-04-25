@@ -6,22 +6,17 @@ import java.util.ArrayList;
 
 public class AppFinanzas {
     public static void main(String[] args) {
-        // 1. INICIALIZACION DE DATOS
+    
         Scanner teclado = new Scanner(System.in);
         ArrayList<Cuenta> misCuentas = new ArrayList<>();
         ArrayList<transaccion> historial = new ArrayList<>();
-        
-        // Cargamos categorias iniciales desde el Servicio
         ArrayList<Categoria> listaCategorias = FinanzasService.cargarCategoriasIniciales();
-        
-        int diaPago = 27; // Valor por defecto
+        int diaPago = 27; 
         int opcion = -1;
 
-        // 2. BUCLE PRINCIPAL DE LA INTERFAZ
         do {
             try {
                 FinanzasService.mostrarMenu();
-                // Usamos parseo manual para evitar errores del buffer de Scanner
                 String entrada = teclado.nextLine();
                 opcion = Integer.parseInt(entrada);
 
@@ -73,6 +68,7 @@ public class AppFinanzas {
                 System.out.println("Error: Por favor ingrese solo numeros para las opciones y montos.");
             } catch (Exception e) {
                 System.out.println("Ocurrio un error inesperado: " + e.getMessage());
+                System.out.println("Recuperando sistema... Por favor intente de nuevo.");
             }
 
         } while (opcion != 0);

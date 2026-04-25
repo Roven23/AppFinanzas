@@ -9,7 +9,6 @@ import java.util.Scanner;
 
 public class FinanzasService {
 
-    // 1. METODOS DE INTERFAZ BASICA
     public static void mostrarMenu() {
         System.out.println("\n========= GESTION FINANCIERA =========");
         System.out.println("1. Ver Saldos de Cuentas");
@@ -27,11 +26,14 @@ public class FinanzasService {
     private static double leerMontoSeguro(Scanner teclado) {
         while (true) {
             try {
-                String entrada = teclado.nextLine();
-                String entradaLimpia = entrada.replace(',', '.');
-                return Double.parseDouble(entradaLimpia);
+                String entrada = teclado.nextLine().replace(',', '.').trim();
+                double monto = Double.parseDouble(entrada);
+                if (monto < 0) {
+                    System.out.print("Error: El monto no puede ser negativo. Ingrese nuevamente: ");
+                    continue;
+                } return monto;    
             } catch (NumberFormatException e) {
-                System.out.print("Error: Ingrese un valor numerico (ej: 10.50 o 10,50): ");
+                System.out.print("Error: Ingrese un valor numerico ");
             }
         }
     }
@@ -45,7 +47,29 @@ public class FinanzasService {
         return lista;
     }
 
-    // 2. GESTION DE CUENTAS Y MOVIMIENTOS
+    public static void crearCuenta(ArrayList<Cuenta> cuentas, Scanner teclado) {
+
+        System.out.print("Ingrese el nombre de la cuenta: ");
+        String nombre = teclado.nextLine().trim();
+
+        if(nombre.isEmpty()) {
+            System.out.println("Error: El nombre de la cuenta no puede estar vacio.");
+            return;
+        }
+
+        for (Cuenta c: cuentas ){
+            if (c.getNombre().equalsIgnoreCase(nombre)) {
+                System.out.println("Error: Ya existe una cuenta con ese nombre.");
+                return;
+            } 
+        }
+        
+        System.out.print("Saldo inicial: ");
+        double saldo = leerMontoSeguro(teclado);
+        cuentas.add(new Cuenta(nombre, saldo));
+        System.out.println("Cuenta " + nombre +"creada exitosamente.");
+    }
+
     public static void mostrarSaldos(ArrayList<Cuenta> cuentas) {
         if (cuentas.isEmpty()) {
             System.out.println("No hay cuentas registradas.");
@@ -53,40 +77,46 @@ public class FinanzasService {
         }
         System.out.println("\n--- ESTADO DE CUENTAS ---");
         for (Cuenta c : cuentas) {
-            System.out.printf("- %s: $%.2f\n", c.getNombre(), c.getSaldo());
+            System.out.printf("- %20s: $%.2f\n", c.getNombre(), c.getSaldo());
         }
     }
 
-    public static void crearCuenta(ArrayList<Cuenta> cuentas, Scanner teclado) {
-        System.out.print("Nombre de la cuenta (ej: Pichincha, [AHORRO]): ");
-        String nombre = teclado.nextLine();
-        System.out.print("Saldo inicial: ");
-        double saldo = Double.parseDouble(teclado.nextLine());
-        cuentas.add(new Cuenta(nombre, saldo));
-        System.out.println("Cuenta creada exitosamente.");
-    }
-
     public static void registrarMovimiento(ArrayList<Cuenta> cuentas, ArrayList<Categoria> categorias, ArrayList<transaccion> historial, Scanner teclado) {
+        
         if (cuentas.isEmpty()) {
             System.out.println("Error: Cree una cuenta primero.");
             return;
         }
-
+        Cuenta cuentaSel = null;
+        try {
         System.out.println("\n--- SELECCIONE CUENTA ---");
         for (int i = 0; i < cuentas.size(); i++) {
             System.out.printf("%d. %s ($%.2f)\n", (i + 1), cuentas.get(i).getNombre(), cuentas.get(i).getSaldo());
         }
         int idxCuenta = Integer.parseInt(teclado.nextLine()) - 1;
-        Cuenta cuentaSel = cuentas.get(idxCuenta);
+        if(idxCuenta < 0 || idxCuenta >= cuentas.size()) {
+            System.out.println("Error: Seleccione una cuenta valida.");
+            return;
+        }
+        cuentaSel = cuentas.get(idxCuenta);
+        } catch (NumberFormatException e) {
+                System.out.print("Error: Ingrese un valor numerico ");
+                return;
+            }
 
-        // ... (Logica de categorias igual que antes) ...
+
+            //no te permite si no hay cuenta creaa
+//eleccion e cuenta (cuenta no valia, no es numero)
+//lo mismo en categoria
+//categoria ya existe
+//valiar que solo escriba true o false
+//valiar monto valio
+//poner el movimiento en qeu cuenta se hace
         System.out.println("\n--- SELECCIONE CATEGORIA ---");
         for (int i = 0; i < categorias.size(); i++) {
-            System.out.println((i + 1) + ". " + categorias.get(i).getNombre());
-        }
+            System.out.println((i + 1) + ". " + categorias.get(i).getNombre());}
         System.out.println((categorias.size() + 1) + ". [ + Crear nueva ]");
         int idxCat = Integer.parseInt(teclado.nextLine()) - 1;
-
         Categoria catSel;
         if (idxCat == categorias.size()) {
             System.out.print("Nombre nueva categoria: ");
@@ -96,14 +126,11 @@ public class FinanzasService {
             catSel = new Categoria(n, t);
             categorias.add(catSel);
         } else {
-            catSel = categorias.get(idxCat);
-        }
-
+            catSel = categorias.get(idxCat);}
         System.out.print("Monto: ");
         double monto = leerMontoSeguro(teclado);
         System.out.print("Descripcion (Opcional): ");
         String desc = teclado.nextLine();
-
         cuentaSel.actualizarSaldo(monto, catSel.isEsIngreso());
         String descFull = "[" + cuentaSel.getNombre() + "] " + desc;
         historial.add(new transaccion(monto, descFull, catSel.getNombre(), catSel.isEsIngreso()));
@@ -167,7 +194,6 @@ public class FinanzasService {
         }
     }
    
-    // 3. LOGICA DE CALENDARIO Y CICLO
     public static int configurarDiaPago(Scanner teclado) {
         java.time.YearMonth mesActual = java.time.YearMonth.now();
         int diasMax = mesActual.lengthOfMonth();
