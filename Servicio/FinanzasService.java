@@ -33,7 +33,7 @@ public class FinanzasService {
                     continue;
                 } return monto;    
             } catch (NumberFormatException e) {
-                System.out.print("Error: Ingrese un valor numerico ");
+                System.out.print("Error: Ingrese un valor numerico. Ingrese nuevamente: ");
             }
         }
     }
@@ -67,7 +67,7 @@ public class FinanzasService {
         System.out.print("Saldo inicial: ");
         double saldo = leerMontoSeguro(teclado);
         cuentas.add(new Cuenta(nombre, saldo));
-        System.out.println("Cuenta " + nombre +"creada exitosamente.");
+        System.out.println("Cuenta " + nombre +" creada exitosamente.");
     }
 
     public static void mostrarSaldos(ArrayList<Cuenta> cuentas) {
@@ -87,54 +87,101 @@ public class FinanzasService {
             System.out.println("Error: Cree una cuenta primero.");
             return;
         }
+
         Cuenta cuentaSel = null;
-        try {
-        System.out.println("\n--- SELECCIONE CUENTA ---");
-        for (int i = 0; i < cuentas.size(); i++) {
-            System.out.printf("%d. %s ($%.2f)\n", (i + 1), cuentas.get(i).getNombre(), cuentas.get(i).getSaldo());
+        Categoria catSel = null;
+
+        //SELECCION DE CUENTA
+        while(true) {
+                try {
+                    System.out.println("\n--- SELECCIONE CUENTA ---");
+
+                    for (int i = 0; i < cuentas.size(); i++) {
+                        System.out.printf("%d. %s ($%.2f)\n", (i + 1), cuentas.get(i).getNombre(), cuentas.get(i).getSaldo());
+                    }
+                    int idxCuenta = Integer.parseInt(teclado.nextLine()) - 1;
+
+                    if(idxCuenta < 0 || idxCuenta >= cuentas.size()) {
+                        System.out.println("Error: Seleccione una cuenta valida.");
+                    }else{
+                        cuentaSel = cuentas.get(idxCuenta);
+                    break;
+                    }
+                } catch (NumberFormatException e) {
+                    System.out.print("Error: Ingrese un valor numerico ");
+                }
         }
-        int idxCuenta = Integer.parseInt(teclado.nextLine()) - 1;
-        if(idxCuenta < 0 || idxCuenta >= cuentas.size()) {
-            System.out.println("Error: Seleccione una cuenta valida.");
-            return;
-        }
-        cuentaSel = cuentas.get(idxCuenta);
-        } catch (NumberFormatException e) {
-                System.out.print("Error: Ingrese un valor numerico ");
-                return;
+        while(true) {
+            try{    
+                System.out.println("\n--- SELECCIONE CATEGORIA ---");
+        //menu
+                for (int i = 0; i < categorias.size(); i++) {
+                    System.out.println((i + 1) + ". " + categorias.get(i).getNombre());}
+                    System.out.println((categorias.size() + 1) + ". [ + Crear nueva ]");
+                    int idxCat = Integer.parseInt(teclado.nextLine()) - 1;
+        
+        //valiacion
+                    if(idxCat < 0 || idxCat > categorias.size()) {
+                        System.out.println("Error: Seleccione una categoria valida.");
+                        continue;
+                    }
+            
+                    if (idxCat == categorias.size()) {
+                        System.out.print("Nombre nueva categoria: ");
+                        String n = teclado.nextLine().trim();
+                        
+                        if(n.isEmpty()) {
+                            System.out.println("Error: El nombre de la categoria no puede estar vacio.");
+                            continue;
+                        }
+                    boolean existe = false;
+                    for (Categoria c: categorias ){
+                        if (c.getNombre().equalsIgnoreCase(n)) {
+                            existe = true;
+                            break;
+                        }       
+                    }
+                    if (existe) {
+                        System.out.println("Error: Ya existe una categoria con ese nombre.");
+                        continue;   
+                    }
+                
+                    boolean t = false;
+                    while(true){
+                        System.out.print("Tipo de movimiento, 1: Ingreso, 2: Egreso: ");
+                        String entrada = teclado.nextLine().trim();
+
+                            if (entrada.equals("1") || entrada.equals("2")) {
+                                t = entrada.equals("1");
+                                break;
+                            } else {
+                                System.out.println("Error: Ingrese '1' o '2'.");
+                            }
+                        }
+
+                    catSel = new Categoria(n, t);
+                    categorias.add(catSel); 
+                    break;
+                    } else {
+                        catSel = categorias.get(idxCat);
+                        break;
+                    } 
+                } catch (NumberFormatException e) {
+                    System.out.print("Error: Ingrese un valor numerico ");
+                    }
             }
-
-
-            //no te permite si no hay cuenta creaa
-//eleccion e cuenta (cuenta no valia, no es numero)
-//lo mismo en categoria
-//categoria ya existe
-//valiar que solo escriba true o false
-//valiar monto valio
-//poner el movimiento en qeu cuenta se hace
-        System.out.println("\n--- SELECCIONE CATEGORIA ---");
-        for (int i = 0; i < categorias.size(); i++) {
-            System.out.println((i + 1) + ". " + categorias.get(i).getNombre());}
-        System.out.println((categorias.size() + 1) + ". [ + Crear nueva ]");
-        int idxCat = Integer.parseInt(teclado.nextLine()) - 1;
-        Categoria catSel;
-        if (idxCat == categorias.size()) {
-            System.out.print("Nombre nueva categoria: ");
-            String n = teclado.nextLine();
-            System.out.print("Es de ingreso? (true/false): ");
-            boolean t = Boolean.parseBoolean(teclado.nextLine());
-            catSel = new Categoria(n, t);
-            categorias.add(catSel);
-        } else {
-            catSel = categorias.get(idxCat);}
+            
         System.out.print("Monto: ");
         double monto = leerMontoSeguro(teclado);
+
         System.out.print("Descripcion (Opcional): ");
         String desc = teclado.nextLine();
+
         cuentaSel.actualizarSaldo(monto, catSel.isEsIngreso());
         String descFull = "[" + cuentaSel.getNombre() + "] " + desc;
         historial.add(new transaccion(monto, descFull, catSel.getNombre(), catSel.isEsIngreso()));
-        System.out.printf("Movimiento de $%.2f registrado.\n", monto);
+        System.out.printf("Movimiento de $%.2f registrado en la cuenta %s.\n", monto , cuentaSel.getNombre());
+        
     }
 
     public static void mostrarHistorialGeneral(ArrayList<transaccion> historial) {
@@ -157,6 +204,21 @@ public class FinanzasService {
         }
     }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    
     public static void realizarTransferencia(ArrayList<Cuenta> cuentas, ArrayList<transaccion> historial, Scanner teclado) {
         if (cuentas.size() < 2) {
             System.out.println("Necesita al menos 2 cuentas para transferir.");
