@@ -108,7 +108,7 @@ public class FinanzasService {
                     break;
                     }
                 } catch (NumberFormatException e) {
-                    System.out.print("Error: Ingrese un valor numerico ");
+                    System.out.println("Error: Ingrese un valor numerico ");
                 }
         }
         while(true) {
@@ -142,7 +142,7 @@ public class FinanzasService {
                         }       
                     }
                     if (existe) {
-                        System.out.println("Error: Ya existe una categoria con ese nombre.");
+                        System.out.println("Error: Ya existe una categoria con ese nombre, cree una diferente o seleccione una existente.");
                         continue;   
                     }
                 
@@ -150,6 +150,7 @@ public class FinanzasService {
                     while(true){
                         System.out.print("Tipo de movimiento, 1: Ingreso, 2: Egreso: ");
                         String entrada = teclado.nextLine().trim();
+                            
 
                             if (entrada.equals("1") || entrada.equals("2")) {
                                 t = entrada.equals("1");
@@ -157,6 +158,8 @@ public class FinanzasService {
                             } else {
                                 System.out.println("Error: Ingrese '1' o '2'.");
                             }
+                            
+                            
                         }
 
                     catSel = new Categoria(n, t);
@@ -167,12 +170,17 @@ public class FinanzasService {
                         break;
                     } 
                 } catch (NumberFormatException e) {
-                    System.out.print("Error: Ingrese un valor numerico ");
+                    System.out.println("Error: Ingrese un valor numerico ");
                     }
             }
-            
+        
         System.out.print("Monto: ");
         double monto = leerMontoSeguro(teclado);
+        if(monto > cuentaSel.getSaldo() && !catSel.isEsIngreso()) {
+            System.out.printf("Error: Saldo insuficiente en la cuenta seleccionada solo tiene $%.2f.\n", cuentaSel.getSaldo());
+            System.out.println("Intente registrar un monto menor o cambie a una categoria de ingreso.");
+            return;
+        }
 
         System.out.print("Descripcion (Opcional): ");
         String desc = teclado.nextLine();
@@ -190,56 +198,93 @@ public class FinanzasService {
             return;
         }
         System.out.println("\n--- HISTORIAL DE TRANSACCIONES ---");
-        System.out.printf("%-12s | %-12s | %-25s | %-10s%.2f\n", "FECHA", "CATEGORIA", "DESCRIPCION", "MONTO");
+        System.out.printf("%-12s | %-15s | %-30s | %-10s\n", "FECHA", "CATEGORIA", "DESCRIPCION", "MONTO");
         System.out.println("---------------------------------------------------------------------------");
         
         for (transaccion t : historial) {
             String signo = t.isEsIngreso() ? "+" : "-";
-            System.out.printf("%-12s | %-12s | %-25s | %s$%.2f\n", 
-                t.getFechaHora().toLocalDate(), 
+            String montoFormateado = String.format("%s$%.2f", signo, t.getMonto());
+            System.out.printf("%-12s | %-15s | %-30s | %10s\n",
+             
+                t.getFechaHora().toLocalDate().toString(), 
                 t.getCategoria(), 
                 t.getDescripcion(), 
-                signo, 
-                t.getMonto());
+                montoFormateado);
+
         }
     }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    
     public static void realizarTransferencia(ArrayList<Cuenta> cuentas, ArrayList<transaccion> historial, Scanner teclado) {
-        if (cuentas.size() < 2) {
-            System.out.println("Necesita al menos 2 cuentas para transferir.");
-            return;
+
+    if (cuentas.size() < 2) {
+        System.out.println("Necesita al menos 2 cuentas para transferir.");
+        return;
+    }
+
+    boolean procesoTerminado = false;
+    int des = -1;
+    int or = -1;
+
+    while (!procesoTerminado) {
+        while (true) {
+            try {
+                System.out.println("\n--- ORIGEN DEL DINERO ---");
+                for (int i = 0; i < cuentas.size(); i++) {
+                    System.out.printf("%d. %s (Saldo: $%.2f)\n", (i + 1), cuentas.get(i).getNombre(), cuentas.get(i).getSaldo());
+                }
+                System.out.println("0. Cancelar transferencia");
+                System.out.print("Seleccione cuenta de origen: ");
+                int seleccion = Integer.parseInt(teclado.nextLine()) - 1;
+
+                if (seleccion == -1) {
+                    System.out.println("Transferencia cancelada.");
+                    return;
+                }
+
+                if (seleccion >= 0 && seleccion < cuentas.size()) {
+                    if (cuentas.get(seleccion).getSaldo() <= 0) {
+                        System.out.println("Error: La cuenta seleccionada no tiene saldo disponible.");
+                        continue;
+                    }
+                    or = seleccion;
+                    break;
+                }
+                System.out.println("Error: Seleccione una cuenta valida.");
+            } catch (NumberFormatException e) {
+                System.out.println("Error: Ingrese un valor numerico.");
+            }
         }
 
-        System.out.println("\n--- ORIGEN DEL DINERO ---");
-        for (int i = 0; i < cuentas.size(); i++) {
-            System.out.printf("%d. %s (Saldo: $%.2f)\n", (i + 1), cuentas.get(i).getNombre(), cuentas.get(i).getSaldo());
-        }
-        System.out.print("Seleccione cuenta de origen: ");
-        int or = Integer.parseInt(teclado.nextLine()) - 1;
+        while (true) {
+            try {
+                System.out.println("\n--- DESTINO DEL DINERO ---");
+                for (int i = 0; i < cuentas.size(); i++) {
+                    if (i == or) continue;
+                    System.out.printf("%d. %s (Saldo: $%.2f)\n", (i + 1), cuentas.get(i).getNombre(), cuentas.get(i).getSaldo());
+                }
+                System.out.println("0. <--- Cambiar cuenta de origen");
+                System.out.print("Seleccione cuenta de destino: ");
+                int destino = Integer.parseInt(teclado.nextLine()) - 1;
 
-        System.out.println("\n--- DESTINO DEL DINERO ---");
-        for (int i = 0; i < cuentas.size(); i++) {
-            if (i == or) continue; // No transferir a la misma cuenta
-            System.out.printf("%d. %s (Saldo: $%.2f)\n", (i + 1), cuentas.get(i).getNombre(), cuentas.get(i).getSaldo());
-        }
-        System.out.print("Seleccione cuenta de destino: ");
-        int des = Integer.parseInt(teclado.nextLine()) - 1;
+                if (destino == -1) {
+                    System.out.println("Volviendo a seleccionar cuenta de origen...");
+                    or = -1; 
+                    break; 
+                }
 
+                if (destino >= 0 && destino < cuentas.size() && destino != or) {
+                    des = destino;
+                    procesoTerminado = true; 
+                    break;
+                }
+                System.out.println("Cuenta no valida.");
+            } catch (NumberFormatException e) {
+                System.out.println("Error: Ingrese un valor numerico.");
+            }
+        }
+    } 
+
+    while (true) {
         System.out.print("Monto a transferir: ");
         double m = leerMontoSeguro(teclado);
 
@@ -247,26 +292,39 @@ public class FinanzasService {
             cuentas.get(or).actualizarSaldo(m, false);
             cuentas.get(des).actualizarSaldo(m, true);
 
-            String d = "De " + cuentas.get(or).getNombre() + " a " + cuentas.get(des).getNombre();
-            // Se registra como egreso del origen para el historial tecnico
+            String d = "Transferencia: " + cuentas.get(or).getNombre() + " -> " + cuentas.get(des).getNombre();
             historial.add(new transaccion(m, d, "TRANSFERENCIA", false));
+
             System.out.printf("Transferencia de $%.2f realizada con exito.\n", m);
+            break; 
         } else {
-            System.out.println("Error: Saldo insuficiente en la cuenta de origen.");
+            System.out.printf("Error: Saldo insuficiente. Solo tiene $%.2f.", cuentas.get(or).getSaldo());
+            System.out.println(" Ingrese un monto menor.");
+            // Aquí podrías agregar una opción para cancelar si el usuario se queda sin opciones
         }
     }
+}
    
     public static int configurarDiaPago(Scanner teclado) {
         java.time.YearMonth mesActual = java.time.YearMonth.now();
         int diasMax = mesActual.lengthOfMonth();
-        int dia;
-        do {
-            System.out.print("Ingrese dia de pago (1-" + diasMax + "): ");
-            dia = Integer.parseInt(teclado.nextLine());
-        } while (dia < 1 || dia > diasMax);
-        return dia;
-    }
+        int dia = -1;
+        while (true) {
+            try{
+                System.out.print("Ingrese dia de pago (1-" + diasMax + "): ");
+                dia = Integer.parseInt(teclado.nextLine());
 
+                if (dia >= 1 && dia <= diasMax) {
+                    return dia;
+                }
+                System.out.println("Error: El dia debe estar entre 1 y " + diasMax);
+            } catch (NumberFormatException e) {
+                System.out.println("Error: Ingrese un numero valido para el dia.");
+            }
+        }
+            
+    }
+        
     public static LocalDateTime obtenerInicioCiclo(int diaPago) {
         LocalDateTime ahora = LocalDateTime.now();
         java.time.YearMonth mesAct = java.time.YearMonth.now();
@@ -281,7 +339,6 @@ public class FinanzasService {
         }
     }
 
-    // 4. LOGICA DE DASHBOARD ANALITICO
     public static void mostrarResumenCiclo(LocalDateTime inicio, ArrayList<transaccion> historial, ArrayList<Cuenta> misCuentas) {
         LocalDateTime fin = inicio.plusMonths(1);
         double ingresosMes = 0, egresosMes = 0, sueldoDet = 0, saldoAhorros = 0, deudaAhorro = 0;
