@@ -28,7 +28,7 @@ public class AppFinanzas {
         int opcion = -1;
         do {
             try {
-                FinanzasService.mostrarMenu();
+                FinanzasService.mostrarMenu(diaPago);
                 String entrada = teclado.nextLine();
                 opcion = Integer.parseInt(entrada);
 
@@ -38,7 +38,7 @@ public class AppFinanzas {
                         break;
 
                     case 2:
-                        FinanzasService.crearCuenta(misCuentas, teclado);
+                        FinanzasService.crearCuenta(misCuentas, teclado, historial);;
                         FinanzasService.guardarDatos(misCuentas, listaCategorias, historial, diaPago);
                         break;
 

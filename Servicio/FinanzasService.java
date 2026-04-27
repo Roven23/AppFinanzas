@@ -13,13 +13,13 @@ import java.util.Scanner;
 
 public class FinanzasService {
 
-    public static void mostrarMenu() {
+    public static void mostrarMenu(int diaPago) {
         System.out.println("\n========= GESTION FINANCIERA =========");
         System.out.println("1. Ver Saldos de Cuentas");
         System.out.println("2. Crear Nueva Cuenta");
         System.out.println("3. Registrar Movimiento (Ingreso/Egreso)");
         System.out.println("4. Ver Historial General");
-        System.out.println("5. Configurar Dia de Pago");
+        System.out.println("5. Configurar Dia de Pago " + diaPago + " de cada mes (Actualmente)");
         System.out.println("6. Ver Dashboard del Ciclo");
         System.out.println("7. Transferencias (Metas de Ahorro)");
         System.out.println("8. Exportar Reporte a Excel");
@@ -52,27 +52,26 @@ public class FinanzasService {
         return lista;
     }
 
-    public static void crearCuenta(ArrayList<Cuenta> cuentas, Scanner teclado) {
-
-        System.out.print("Ingrese el nombre de la cuenta: ");
-        String nombre = teclado.nextLine().trim();
-
-        if(nombre.isEmpty()) {
-            System.out.println("Error: El nombre de la cuenta no puede estar vacio.");
-            return;
-        }
-
-        for (Cuenta c: cuentas ){
-            if (c.getNombre().equalsIgnoreCase(nombre)) {
-                System.out.println("Error: Ya existe una cuenta con ese nombre.");
-                return;
-            } 
-        }
-        
+    public static void crearCuenta(ArrayList<Cuenta> cuentas, Scanner teclado, ArrayList<transaccion> historial) {
+        System.out.print("Nombre de la cuenta (ej. Efectivo, Banco): ");
+        String nombre = teclado.nextLine();
         System.out.print("Saldo inicial: ");
         double saldo = leerMontoSeguro(teclado);
-        cuentas.add(new Cuenta(nombre, saldo));
-        System.out.println("Cuenta " + nombre +" creada exitosamente.");
+
+        Cuenta nueva = new Cuenta(nombre, saldo);
+        cuentas.add(nueva);
+
+        // BLINDAJE: Si hay saldo inicial, creamos la transacción para que el Dashboard la sume
+        if (saldo > 0) {
+            historial.add(new transaccion(
+                saldo, 
+                "Apertura de cuenta: " + nombre, 
+                "APERTURA", 
+                true, 
+                nombre
+            ));
+        }
+        System.out.println("Cuenta registrada y saldo inicial añadido al historial.");
     }
 
     public static void mostrarSaldos(ArrayList<Cuenta> cuentas) {
@@ -311,24 +310,27 @@ public class FinanzasService {
 }
    
     public static int configurarDiaPago(Scanner teclado) {
-        java.time.YearMonth mesActual = java.time.YearMonth.now();
-        int diasMax = mesActual.lengthOfMonth();
-        int dia = -1;
-        while (true) {
-            try{
-                System.out.print("Ingrese dia de pago (1-" + diasMax + "): ");
-                dia = Integer.parseInt(teclado.nextLine());
+    java.time.YearMonth mesActual = java.time.YearMonth.now();
+    int diasMax = mesActual.lengthOfMonth();
+    int dia = -1;
 
-                if (dia >= 1 && dia <= diasMax) {
-                    return dia;
-                }
+    while (true) {
+        try {
+            System.out.print("Ingrese el nuevo dia de pago (1-" + diasMax + "): ");
+            String entrada = teclado.nextLine().trim(); // Usamos nextLine para evitar basura en el buffer
+            dia = Integer.parseInt(entrada);
+
+            if (dia >= 1 && dia <= diasMax) {
+                System.out.println("Dia de pago actualizado a: " + dia);
+                return dia; // Retornamos el valor para que el main lo reciba
+            } else {
                 System.out.println("Error: El dia debe estar entre 1 y " + diasMax);
-            } catch (NumberFormatException e) {
-                System.out.println("Error: Ingrese un numero valido para el dia.");
             }
+        } catch (NumberFormatException e) {
+            System.out.println("Error: Ingrese un numero valido.");
         }
-            
     }
+}
         
     public static LocalDateTime obtenerInicioCiclo(int diaPago) {
         LocalDateTime ahora = LocalDateTime.now();
