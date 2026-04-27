@@ -1,6 +1,10 @@
 package Servicio;
 
 import Modelo.*;
+
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.ObjectOutputStream;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Map;
@@ -18,6 +22,7 @@ public class FinanzasService {
         System.out.println("5. Configurar Dia de Pago");
         System.out.println("6. Ver Dashboard del Ciclo");
         System.out.println("7. Transferencias (Metas de Ahorro)");
+        System.out.println("8. Exportar Reporte a Excel");
         System.out.println("0. Salir y Guardar");
         System.out.println("======================================");
         System.out.print("Seleccione una opcion: ");
@@ -187,7 +192,7 @@ public class FinanzasService {
 
         cuentaSel.actualizarSaldo(monto, catSel.isEsIngreso());
         String descFull = "[" + cuentaSel.getNombre() + "] " + desc;
-        historial.add(new transaccion(monto, descFull, catSel.getNombre(), catSel.isEsIngreso()));
+        historial.add(new transaccion(monto, descFull, catSel.getNombre(), catSel.isEsIngreso(),cuentaSel.getNombre()));
         System.out.printf("Movimiento de $%.2f registrado en la cuenta %s.\n", monto , cuentaSel.getNombre());
         
     }
@@ -293,7 +298,7 @@ public class FinanzasService {
             cuentas.get(des).actualizarSaldo(m, true);
 
             String d = "Transferencia: " + cuentas.get(or).getNombre() + " -> " + cuentas.get(des).getNombre();
-            historial.add(new transaccion(m, d, "TRANSFERENCIA", false));
+            historial.add(new transaccion(m, d, "TRANSFERENCIA", false,cuentas.get(or).getNombre()));
 
             System.out.printf("Transferencia de $%.2f realizada con exito.\n", m);
             break; 
@@ -367,7 +372,7 @@ public class FinanzasService {
         }
 
         System.out.println("\n=========================================");
-        System.out.println("   DASHBOARD ESTRATEGICO AUTOMATIZADO");
+        System.out.println("   DASHBOARD FINANCIERO DEL CICLO ACTUAL");
         System.out.println("   Periodo: " + inicio.toLocalDate() + " al " + fin.toLocalDate().minusDays(1));
         System.out.println("=========================================");
         System.out.printf(" SUELDO DETECTADO:     $%.2f\n", sueldoDet);
@@ -391,4 +396,61 @@ public class FinanzasService {
         }
         System.out.println("=========================================\n");
     }
+
+    public static void guardarDatos(ArrayList<Cuenta> cuentas, ArrayList<Categoria> categorias, ArrayList<transaccion> historial, int diaPago) {
+    // Usamos try-with-resources para el cierre automático (Blindaje de Memoria)
+        try (java.io.ObjectOutputStream oos = new java.io.ObjectOutputStream(new java.io.FileOutputStream("datos_finanzas.dat"))) {
+        
+            oos.writeObject(cuentas);      // 1. Cuentas
+            oos.writeObject(categorias);   // 2. Categorías
+            oos.writeObject(historial);    // 3. Historial
+            oos.writeInt(diaPago);         // 4. El día de pago que configuró el usuario
+
+            
+        } catch (java.io.IOException e) {
+            System.out.println("[Error Crítico] No se pudo escribir en el disco: " + e.getMessage());
+        }
+    }
+
+    public static int cargarDatos(ArrayList<Cuenta> cuentas, ArrayList<Categoria> categorias, ArrayList<transaccion> historial) {
+    int diaPagoRecuperado = 1;
+    java.io.File archivo = new java.io.File("datos_finanzas.dat");
+
+    if (!archivo.exists()) return 1;
+
+    try (java.io.ObjectInputStream ois = new java.io.ObjectInputStream(new java.io.FileInputStream(archivo))) {
+        
+        // El orden debe ser IDENTICO al de guardado
+        cuentas.addAll((ArrayList<Cuenta>) ois.readObject());
+        categorias.addAll((ArrayList<Categoria>) ois.readObject());
+        historial.addAll((ArrayList<transaccion>) ois.readObject());
+        diaPagoRecuperado = ois.readInt();
+
+        System.out.println("[Sistema] Memoria cargada: " + historial.size() + " movimientos detectados.");
+    } catch (Exception e) {
+        System.out.println("[Advertencia] Error de sincronización al cargar datos.");
+    }
+    return diaPagoRecuperado;
+}
+
+    public static void exportarExcel(ArrayList<transaccion> historial) {
+    try (java.io.PrintWriter writer = new java.io.PrintWriter(new java.io.File("Reporte_Finanzas.csv"))) {
+        // Encabezados con columna de Cuenta
+        writer.println("Fecha;Hora;Descripcion;Monto;Tipo;Categoria;Cuenta");
+
+        for (transaccion t : historial) {
+            writer.print(t.getFechaHora().toLocalDate() + ";");
+            writer.print(t.getFechaHora().toLocalTime().toString().substring(0, 5) + ";");
+            writer.print(t.getDescripcion() + ";");
+            writer.print(String.format(java.util.Locale.US, "%.2f", t.getMonto()) + ";");
+            writer.print((t.isEsIngreso() ? "INGRESO" : "EGRESO") + ";");
+            writer.print(t.getCategoria() + ";");
+            writer.println(t.getNombreCuenta()); // Ahora sí funcionará sin errores
+        }
+        System.out.println("[Sistema] Reporte generado con éxito.");
+    } catch (java.io.IOException e) {
+        System.out.println("[Error] Error: " + e.getMessage());
+    }
+}
+
 }

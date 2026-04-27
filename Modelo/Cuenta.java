@@ -1,6 +1,8 @@
 package Modelo;
+import java.io.Serializable;
 
-public class Cuenta {
+public class Cuenta implements Serializable {
+    private static final long serialVersionUID = 1L; // Para la serialización
     private String nombre;
     private double saldo;
 

@@ -1,6 +1,8 @@
 package Modelo;
+import java.io.Serializable;
 
-public class Categoria {
+public class Categoria implements Serializable {
+    private static final long serialVersionUID = 1L; // Para la serialización
     private String nombre;
     private boolean esIngreso; // true si es categoría de ingreso, false si es de gasto
 
